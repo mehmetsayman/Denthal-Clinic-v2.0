@@ -268,8 +268,11 @@ public sealed class ClinicDataStore
             return null;
         }
 
-        Snapshot = remote!;
-        await SaveLocalAsync(touchUpdatedAt: false);
+        if (remote!.Version >= Snapshot.Version)
+        {
+            Snapshot = remote;
+            await SaveLocalAsync(touchUpdatedAt: false);
+        }
         LastSyncError = null;
         return Snapshot;
     }

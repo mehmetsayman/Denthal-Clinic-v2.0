@@ -522,9 +522,9 @@ public sealed class MainForm : Form
 
         var tabs = new TabControl { Dock = DockStyle.Fill, Font = ModernUi.BodyFont };
         var appointments = VisibleAppointments().ToList();
-        tabs.TabPages.Add(Tab("Bekleyen", Flow(appointments.Where(a => a.Status == AppointmentStatus.TalepEdildi).OrderBy(a => a.StartsAt).Select(a => AppointmentCard(a, true)))));
-        tabs.TabPages.Add(Tab("Onaylı", Flow(appointments.Where(a => a.Status == AppointmentStatus.Onaylandi).OrderBy(a => a.StartsAt).Select(a => AppointmentCard(a, true)))));
-        tabs.TabPages.Add(Tab("Geçmiş", Flow(appointments.Where(a => a.Status is AppointmentStatus.Tamamlandi or AppointmentStatus.Geldi or AppointmentStatus.Iptal or AppointmentStatus.Reddedildi).OrderByDescending(a => a.StartsAt).Select(a => AppointmentCard(a, true)))));
+        tabs.TabPages.Add(Tab("Bekleyen", Flow(appointments.Where(a => a.Status == AppointmentStatus.TalepEdildi).OrderBy(a => a.StartsAt).Take(20).Select(a => AppointmentCard(a, true)))));
+        tabs.TabPages.Add(Tab("Onaylı", Flow(appointments.Where(a => a.Status == AppointmentStatus.Onaylandi).OrderBy(a => a.StartsAt).Take(20).Select(a => AppointmentCard(a, true)))));
+        tabs.TabPages.Add(Tab("Geçmiş", Flow(appointments.Where(a => a.Status is AppointmentStatus.Tamamlandi or AppointmentStatus.Geldi or AppointmentStatus.Iptal or AppointmentStatus.Reddedildi).OrderByDescending(a => a.StartsAt).Take(20).Select(a => AppointmentCard(a, true)))));
         
         tabs.SelectedIndexChanged += (_, _) => _lastAppointmentTabIndex = tabs.SelectedIndex;
         if (_lastAppointmentTabIndex >= 0 && _lastAppointmentTabIndex < tabs.TabCount)
@@ -804,7 +804,7 @@ public sealed class MainForm : Form
         _store.Snapshot.Appointments.Add(item);
         await _store.AddLogAsync(_currentUser, "Randevu Talebi", $"{_store.PatientName(item.PatientId)} için randevu kaydı oluşturuldu.", item.PatientId, item.DoctorUserId);
         await NotifyPatientAsync(item, "Randevu talebiniz alındı", $"{item.StartsAt:dd.MM.yyyy HH:mm} için {_store.DoctorName(item.DoctorUserId)} randevu talebiniz alındı.");
-        ShowAppointments();
+        Navigate(ShowAppointments, remember: false);
     }
 
     private async void AddPrescription()
@@ -836,7 +836,7 @@ public sealed class MainForm : Form
         if (item is null) return;
         _store.Snapshot.Treatments.Add(item);
         await _store.AddLogAsync(_currentUser, "Tedavi Notu", $"{_store.PatientName(item.PatientId)} için tedavi notu eklendi.", item.PatientId, item.DoctorUserId);
-        ShowTreatments();
+        Navigate(ShowTreatments, remember: false);
     }
 
     private void ChangeAppointmentStatus(Appointment appointment, AppointmentStatus status)
@@ -853,7 +853,7 @@ public sealed class MainForm : Form
             appointment.ApprovedByUserId = _currentUser.Id;
         }
 
-        ShowAppointments();
+        Navigate(() => ShowAppointments(), remember: false);
 
         _ = _store.AddLogAsync(_currentUser, "Randevu Durumu", $"{_store.PatientName(appointment.PatientId)} randevusu {StatusText(status)} olarak güncellendi.", appointment.PatientId, appointment.DoctorUserId);
         _ = NotifyPatientAsync(appointment, "Randevu durumu güncellendi", $"{appointment.StartsAt:dd.MM.yyyy HH:mm} tarihli {_store.DoctorName(appointment.DoctorUserId)} randevunuz {StatusText(status)} olarak güncellendi.");
