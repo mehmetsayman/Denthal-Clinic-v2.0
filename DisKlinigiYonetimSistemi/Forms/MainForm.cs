@@ -160,7 +160,7 @@ public sealed class MainForm : Form
         if (!IsPatient) AddNav(nav, "Ekip Profilleri", ShowStaff);
         if (IsAdmin) AddNav(nav, "Sistem Logları", ShowLogs);
         if (IsAdmin) AddNav(nav, "Supabase Durumu", ShowSupabaseSettings, rememberPage: false);
-        AddNav(nav, "Çıkış Yap", Close);
+        AddNav(nav, "Çıkış Yap", () => { DialogResult = DialogResult.OK; Close(); });
     }
 
     private string RoleTitle() => _currentUser.Role switch

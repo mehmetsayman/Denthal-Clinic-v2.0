@@ -344,9 +344,17 @@ public sealed class LoginForm : Form
         // Fire and forget to avoid blocking the UI
         _ = _store.AddLogAsync(user, "Giriş", $"{user.FullName} sisteme giriş yaptı.");
         
+        Hide();
         using var dashboard = new MainForm(_store, user);
-        dashboard.ShowDialog(this);
-        _passwordBox.Clear();
+        if (dashboard.ShowDialog(this) != DialogResult.OK)
+        {
+            Application.Exit();
+        }
+        else
+        {
+            Show();
+            _passwordBox.Clear();
+        }
     }
 
     private async void RegisterPatient()
