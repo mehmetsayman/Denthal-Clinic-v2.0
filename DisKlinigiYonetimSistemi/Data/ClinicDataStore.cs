@@ -145,11 +145,14 @@ public sealed class ClinicDataStore
         };
     }
 
-    public async Task SaveAsync()
+    public Task SaveAsync()
     {
-        EmbedRadiographImages();
-        await SaveLocalAsync();
-        _ = Task.Run(() => TryPushSupabaseAsync());
+        return Task.Run(async () =>
+        {
+            EmbedRadiographImages();
+            await SaveLocalAsync();
+            _ = Task.Run(() => TryPushSupabaseAsync());
+        });
     }
 
     private async Task SaveLocalAsync(bool touchUpdatedAt = true)
@@ -157,6 +160,7 @@ public sealed class ClinicDataStore
         if (touchUpdatedAt)
         {
             Snapshot.UpdatedAt = DateTime.Now;
+            Snapshot.Version = DateTime.UtcNow.Ticks;
         }
 
         await using var stream = File.Create(_dataPath);
@@ -288,8 +292,15 @@ public sealed class ClinicDataStore
             var remote = await _supabaseClient!.PullAsync();
             if (IsUsableSnapshot(remote))
             {
-                Snapshot = remote!;
-                await SaveLocalAsync(touchUpdatedAt: false);
+                if (remote!.Version >= Snapshot.Version)
+                {
+                    Snapshot = remote;
+                    await SaveLocalAsync(touchUpdatedAt: false);
+                }
+                else
+                {
+                    await _supabaseClient.PushAsync(Snapshot);
+                }
             }
             else
             {

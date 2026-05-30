@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace DisKlinigiYonetimSistemi.Models;
 
@@ -187,4 +187,5 @@ public sealed class DataSnapshot
     public List<SystemLog> Logs { get; set; } = [];
     public List<NotificationMessage> Notifications { get; set; } = [];
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
+    public long Version { get; set; } = DateTime.UtcNow.Ticks;
 }

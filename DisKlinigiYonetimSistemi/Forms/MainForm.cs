@@ -78,10 +78,10 @@ public sealed class MainForm : Form
         _syncInProgress = true;
         try
         {
-            var previousUpdate = _store.Snapshot.UpdatedAt;
+            var previousVersion = _store.Snapshot.Version;
             var snapshot = await _store.PullFromSupabaseAsync();
             var refresh = _currentPage;
-            if (snapshot is not null && snapshot.UpdatedAt != previousUpdate && refresh is not null)
+            if (snapshot is not null && snapshot.Version != previousVersion && refresh is not null)
             {
                 Navigate(refresh, remember: false);
             }
@@ -839,7 +839,7 @@ public sealed class MainForm : Form
         ShowTreatments();
     }
 
-    private async Task ChangeAppointmentStatus(Appointment appointment, AppointmentStatus status)
+    private void ChangeAppointmentStatus(Appointment appointment, AppointmentStatus status)
     {
         if (status == AppointmentStatus.Onaylandi && HasAppointmentConflict(appointment))
         {
@@ -853,9 +853,10 @@ public sealed class MainForm : Form
             appointment.ApprovedByUserId = _currentUser.Id;
         }
 
-        await _store.AddLogAsync(_currentUser, "Randevu Durumu", $"{_store.PatientName(appointment.PatientId)} randevusu {StatusText(status)} olarak güncellendi.", appointment.PatientId, appointment.DoctorUserId);
-        await NotifyPatientAsync(appointment, "Randevu durumu güncellendi", $"{appointment.StartsAt:dd.MM.yyyy HH:mm} tarihli {_store.DoctorName(appointment.DoctorUserId)} randevunuz {StatusText(status)} olarak güncellendi.");
         ShowAppointments();
+
+        _ = _store.AddLogAsync(_currentUser, "Randevu Durumu", $"{_store.PatientName(appointment.PatientId)} randevusu {StatusText(status)} olarak güncellendi.", appointment.PatientId, appointment.DoctorUserId);
+        _ = NotifyPatientAsync(appointment, "Randevu durumu güncellendi", $"{appointment.StartsAt:dd.MM.yyyy HH:mm} tarihli {_store.DoctorName(appointment.DoctorUserId)} randevunuz {StatusText(status)} olarak güncellendi.");
     }
 
     private bool HasAppointmentConflict(Appointment appointment) =>
@@ -963,20 +964,20 @@ public sealed class MainForm : Form
             };
             if ((CanOffice || CanClinical) && appointment.Status == AppointmentStatus.TalepEdildi)
             {
-                row.Controls.Add(ActionButton("Onayla", ModernUi.Accent, async () => await ChangeAppointmentStatus(appointment, AppointmentStatus.Onaylandi)));
-                row.Controls.Add(ActionButton("Reddet", ModernUi.Danger, async () => await ChangeAppointmentStatus(appointment, AppointmentStatus.Reddedildi)));
+                row.Controls.Add(ActionButton("Onayla", ModernUi.Accent, () => ChangeAppointmentStatus(appointment, AppointmentStatus.Onaylandi)));
+                row.Controls.Add(ActionButton("Reddet", ModernUi.Danger, () => ChangeAppointmentStatus(appointment, AppointmentStatus.Reddedildi)));
             }
             if ((CanOffice || CanClinical) && appointment.Status == AppointmentStatus.Onaylandi)
             {
-                row.Controls.Add(ActionButton("Geldi", Color.FromArgb(92, 107, 192), async () => await ChangeAppointmentStatus(appointment, AppointmentStatus.Geldi)));
+                row.Controls.Add(ActionButton("Geldi", Color.FromArgb(92, 107, 192), () => ChangeAppointmentStatus(appointment, AppointmentStatus.Geldi)));
             }
             if (CanClinical && appointment.Status == AppointmentStatus.Geldi)
             {
-                row.Controls.Add(ActionButton("Tamamla", ModernUi.Primary, async () => await ChangeAppointmentStatus(appointment, AppointmentStatus.Tamamlandi)));
+                row.Controls.Add(ActionButton("Tamamla", ModernUi.Primary, () => ChangeAppointmentStatus(appointment, AppointmentStatus.Tamamlandi)));
             }
             if ((IsPatient || CanOffice || CanClinical) && appointment.Status is AppointmentStatus.TalepEdildi or AppointmentStatus.Onaylandi)
             {
-                row.Controls.Add(ActionButton("İptal Et", Color.FromArgb(230, 236, 244), async () => await ChangeAppointmentStatus(appointment, AppointmentStatus.Iptal), ModernUi.Text));
+                row.Controls.Add(ActionButton("İptal Et", Color.FromArgb(230, 236, 244), () => ChangeAppointmentStatus(appointment, AppointmentStatus.Iptal), ModernUi.Text));
             }
             layout.Controls.Add(row, 0, 5);
         }
@@ -1215,12 +1216,21 @@ public sealed class MainForm : Form
         Margin = new Padding(0, 0, 0, 8)
     };
 
+    private Button ActionButton(string text, Color backColor, Action action, Color? foreColor = null)
+    {
+        return ActionButton(text, backColor, () => { action(); return Task.CompletedTask; }, foreColor);
+    }
+
     private Button ActionButton(string text, Color backColor, Func<Task> action, Color? foreColor = null)
     {
-        var button = ModernUi.FlatButton(text, backColor, foreColor ?? Color.White);
-        button.Width = 112;
-        button.Height = 38;
-        button.Click += async (_, _) => await action();
+        var button = ActionButton(text, 100, backColor);
+        button.ForeColor = foreColor ?? Color.White;
+        button.Click += async (_, _) =>
+        {
+            button.Enabled = false;
+            try { await action(); }
+            finally { button.Enabled = true; }
+        };
         return button;
     }
 
