@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using DisKlinigiYonetimSistemi.Models;
 
 namespace DisKlinigiYonetimSistemi.Data;
@@ -149,7 +149,7 @@ public sealed class ClinicDataStore
     {
         EmbedRadiographImages();
         await SaveLocalAsync();
-        await TryPushSupabaseAsync();
+        _ = Task.Run(() => TryPushSupabaseAsync());
     }
 
     private async Task SaveLocalAsync(bool touchUpdatedAt = true)

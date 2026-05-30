@@ -12,6 +12,7 @@ public sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _syncTimer = new() { Interval = 15000 };
     private Action? _currentPage;
     private bool _syncInProgress;
+    private int _lastAppointmentTabIndex;
 
     public MainForm(ClinicDataStore store, UserAccount currentUser)
     {
@@ -524,6 +525,13 @@ public sealed class MainForm : Form
         tabs.TabPages.Add(Tab("Bekleyen", Flow(appointments.Where(a => a.Status == AppointmentStatus.TalepEdildi).OrderBy(a => a.StartsAt).Select(a => AppointmentCard(a, true)))));
         tabs.TabPages.Add(Tab("Onaylı", Flow(appointments.Where(a => a.Status == AppointmentStatus.Onaylandi).OrderBy(a => a.StartsAt).Select(a => AppointmentCard(a, true)))));
         tabs.TabPages.Add(Tab("Geçmiş", Flow(appointments.Where(a => a.Status is AppointmentStatus.Tamamlandi or AppointmentStatus.Geldi or AppointmentStatus.Iptal or AppointmentStatus.Reddedildi).OrderByDescending(a => a.StartsAt).Select(a => AppointmentCard(a, true)))));
+        
+        tabs.SelectedIndexChanged += (_, _) => _lastAppointmentTabIndex = tabs.SelectedIndex;
+        if (_lastAppointmentTabIndex >= 0 && _lastAppointmentTabIndex < tabs.TabCount)
+        {
+            tabs.SelectedIndex = _lastAppointmentTabIndex;
+        }
+        
         body.Controls.Add(tabs, 0, 1);
     }
 
@@ -980,13 +988,21 @@ public sealed class MainForm : Form
     {
         var card = ModernUi.Card();
         card.Width = 470;
-        card.Height = 420;
-        card.Controls.Add(Stack(
+        card.MinimumSize = new Size(470, 420);
+        card.AutoSize = true;
+        card.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+
+        var stack = (FlowLayoutPanel)Stack(
             ModernUi.Label(prescription.Topic, ModernUi.HeaderFont),
             ModernUi.Label($"{_store.PatientName(prescription.PatientId)} - {_store.DoctorName(prescription.DoctorUserId)} - {prescription.Date:dd.MM.yyyy}", ModernUi.SmallFont, ModernUi.Muted),
             InfoBlock("İlaçlar", prescription.Medicines),
             InfoBlock("Otomatik Kullanım", prescription.UsageInstructions),
-            InfoBlock("Doktor Notu", prescription.DoctorNote)));
+            InfoBlock("Doktor Notu", prescription.DoctorNote));
+
+        stack.AutoSize = true;
+        stack.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+
+        card.Controls.Add(stack);
         return card;
     }
 
@@ -1148,8 +1164,31 @@ public sealed class MainForm : Form
         return card;
     }
 
-    private Control InfoBlock(string title, string value) =>
-        Stack(ModernUi.Label(title, ModernUi.SmallFont, ModernUi.Muted), ModernUi.Label(string.IsNullOrWhiteSpace(value) ? "-" : value, ModernUi.BodyFont, ModernUi.Text));
+    private Control InfoBlock(string title, string value)
+    {
+        var panel = new TableLayoutPanel
+        {
+            ColumnCount = 1,
+            RowCount = 2,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Top,
+            Margin = new Padding(0, 0, 0, 8)
+        };
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var lblTitle = ModernUi.Label(title, ModernUi.SmallFont, ModernUi.Muted);
+        lblTitle.Margin = new Padding(0, 4, 0, 0);
+        
+        var lblValue = ModernUi.Label(string.IsNullOrWhiteSpace(value) ? "-" : value, ModernUi.BodyFont, ModernUi.Text);
+        lblValue.Margin = new Padding(0, 0, 0, 4);
+        lblValue.MaximumSize = new Size(400, 0);
+
+        panel.Controls.Add(lblTitle, 0, 0);
+        panel.Controls.Add(lblValue, 0, 1);
+        return panel;
+    }
 
     private Label ProfileLine(string title, string value, int titleSize = 10) =>
         ModernUi.Label($"{title}: {value}", new Font("Segoe UI Semibold", titleSize), ModernUi.Text);
@@ -1334,7 +1373,6 @@ public sealed class MainForm : Form
 
     private static void Wire(Control control, Action action)
     {
-        control.MouseEnter += (_, _) => action();
         control.Click += (_, _) => action();
         foreach (Control child in control.Controls)
         {

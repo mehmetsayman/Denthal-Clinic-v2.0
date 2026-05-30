@@ -18,7 +18,7 @@ public static class EntityEditorForms
 
         IEnumerable<Patient> patientSource = currentPatient is null ? store.Snapshot.Patients : new[] { currentPatient };
         var patient = Lookup(patientSource, item => item.FullName, item => item.Id);
-        var doctor = Lookup(store.Doctors.ToList(), item => item.FullName, item => item.Id);
+        var doctor = Lookup(store.Doctors.ToList(), item => $"{item.FullName} - {item.Specialty}", item => item.Id);
         var patientBox = Combo(patient, entity.PatientId);
         var doctorBox = Combo(doctor, entity.DoctorUserId);
         var date = new DateTimePicker { Format = DateTimePickerFormat.Custom, CustomFormat = "dd.MM.yyyy HH:mm", Value = entity.StartsAt, Font = ModernUi.BodyFont };
@@ -86,7 +86,7 @@ public static class EntityEditorForms
         var entity = source is null ? new Prescription { DoctorUserId = currentUser.Id } : Clone(source);
         using var form = Dialog("Akıllı Reçete", 700, 720);
         var patientBox = Combo(Lookup(store.Snapshot.Patients, item => item.FullName, item => item.Id), entity.PatientId);
-        var doctorBox = Combo(Lookup(store.Doctors.ToList(), item => item.FullName, item => item.Id), entity.DoctorUserId);
+        var doctorBox = Combo(Lookup(store.Doctors.ToList(), item => $"{item.FullName} - {item.Specialty}", item => item.Id), entity.DoctorUserId);
         var date = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = entity.Date, Font = ModernUi.BodyFont };
         var topicBox = Combo(
             new[] { "Kanal Tedavisi", "Dolgu Sonrası", "Diş Eti Tedavisi", "Cerrahi Hazırlık", "Ortodontik Hazırlık", "İmplant Planlama", "Rutin Kontrol" }
@@ -196,7 +196,7 @@ public static class EntityEditorForms
         var entity = source is null ? new TreatmentPlan { DoctorUserId = currentUser.Id } : Clone(source);
         using var form = Dialog("Tedavi Plani", 560, 620);
         var patientBox = Combo(Lookup(store.Snapshot.Patients, item => item.FullName, item => item.Id), entity.PatientId);
-        var doctorBox = Combo(Lookup(store.Doctors.ToList(), item => item.FullName, item => item.Id), entity.DoctorUserId);
+        var doctorBox = Combo(Lookup(store.Doctors.ToList(), item => $"{item.FullName} - {item.Specialty}", item => item.Id), entity.DoctorUserId);
         var date = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = entity.Date, Font = ModernUi.BodyFont };
         var toothNo = Text(entity.ToothNo, "Diş no");
         var procedure = Text(entity.ProcedureName, "İşlem");
