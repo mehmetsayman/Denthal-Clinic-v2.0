@@ -1,4 +1,4 @@
-﻿using System.Drawing.Drawing2D;
+using System.Drawing.Drawing2D;
 using System.ComponentModel;
 using DisKlinigiYonetimSistemi.Controls;
 using DisKlinigiYonetimSistemi.Data;
@@ -341,7 +341,9 @@ public sealed class LoginForm : Form
             return;
         }
 
-        await _store.AddLogAsync(user, "Giriş", $"{user.FullName} sisteme giriş yaptı.");
+        // Fire and forget to avoid blocking the UI
+        _ = _store.AddLogAsync(user, "Giriş", $"{user.FullName} sisteme giriş yaptı.");
+        
         using var dashboard = new MainForm(_store, user);
         dashboard.ShowDialog(this);
         _passwordBox.Clear();

@@ -1,4 +1,4 @@
-﻿using DisKlinigiYonetimSistemi.Controls;
+using DisKlinigiYonetimSistemi.Controls;
 using DisKlinigiYonetimSistemi.Data;
 using DisKlinigiYonetimSistemi.Models;
 
@@ -464,10 +464,10 @@ public static class EntityEditorForms
         return null;
     }
 
-    public static UserAccount? Doctor(UserAccount? source)
+    public static (UserAccount? Doctor, string? SecretaryId) Doctor(ClinicDataStore store, UserAccount? source)
     {
         var entity = source is null ? new UserAccount { Role = UserRole.Doktor } : Clone(source);
-        using var form = Dialog("Doktor Bilgisi", 560, 560);
+        using var form = Dialog("Doktor Bilgisi", 560, 640);
         
         var nameBox = Text(entity.FullName, "");
         var specBox = Text(entity.Specialty, "");
@@ -475,9 +475,17 @@ public static class EntityEditorForms
         var passBox = Text(entity.Password, "");
         var phoneBox = Text(entity.Phone, "");
         var roomBox = Text(entity.RoomName, "");
+
+        var secretaries = store.Snapshot.Users.Where(u => u.Role == UserRole.Sekreter).ToList();
+        var secretaryOptions = new List<LookupItem> { new LookupItem("Sekreter Seçiniz...", "") };
+        secretaryOptions.AddRange(secretaries.Select(s => new LookupItem(s.FullName, s.Id)));
+
+        var currentSecretary = source != null ? store.Snapshot.Users.FirstOrDefault(u => u.Role == UserRole.Sekreter && u.AssignedDoctorUserId == source.Id) : null;
+        var secretaryBox = Combo(secretaryOptions, currentSecretary?.Id ?? "");
         
-        var layout = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2, RowCount = 3, Padding = new Padding(16) };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2, RowCount = 4, Padding = new Padding(16) };
         for (var i = 0; i < 2; i++) layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -485,14 +493,15 @@ public static class EntityEditorForms
         layout.Controls.Add(Wrap("Ad Soyad", nameBox), 0, 0); layout.Controls.Add(Wrap("Uzmanlik Alani", specBox), 1, 0);
         layout.Controls.Add(Wrap("E-Posta (Giriş ID)", emailBox), 0, 1); layout.Controls.Add(Wrap("Şifre", passBox), 1, 1);
         layout.Controls.Add(Wrap("Telefon", phoneBox), 0, 2); layout.Controls.Add(Wrap("Oda Ismi", roomBox), 1, 2);
+        layout.Controls.Add(Wrap("Atanacak Sekreter", secretaryBox), 0, 3);
 
         form.Controls.Add(layout);
         AddDialogButtons(form);
 
         if (form.ShowDialog() == DialogResult.OK)
         {
-            if (string.IsNullOrWhiteSpace(nameBox.Text)) { MessageBox.Show("Ad soyad zorunludur.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error); return null; }
-            if (string.IsNullOrWhiteSpace(emailBox.Text)) { MessageBox.Show("E-posta zorunludur.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error); return null; }
+            if (string.IsNullOrWhiteSpace(nameBox.Text)) { MessageBox.Show("Ad soyad zorunludur.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error); return (null, null); }
+            if (string.IsNullOrWhiteSpace(emailBox.Text)) { MessageBox.Show("E-posta zorunludur.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error); return (null, null); }
             
             entity.FullName = nameBox.Text;
             entity.Specialty = specBox.Text;
@@ -501,9 +510,9 @@ public static class EntityEditorForms
             entity.Password = passBox.Text;
             entity.Phone = phoneBox.Text;
             entity.RoomName = roomBox.Text;
-            return entity;
+            return (entity, Value(secretaryBox));
         }
-        return null;
+        return (null, null);
     }
 
     private static Patient Clone(Patient item) => new()

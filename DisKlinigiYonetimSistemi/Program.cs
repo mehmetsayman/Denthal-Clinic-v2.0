@@ -1,4 +1,4 @@
-﻿using DisKlinigiYonetimSistemi.Data;
+using DisKlinigiYonetimSistemi.Data;
 using DisKlinigiYonetimSistemi.Forms;
 
 namespace DisKlinigiYonetimSistemi;

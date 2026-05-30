@@ -1,4 +1,4 @@
-﻿using DisKlinigiYonetimSistemi.Controls;
+using DisKlinigiYonetimSistemi.Controls;
 using DisKlinigiYonetimSistemi.Data;
 using DisKlinigiYonetimSistemi.Models;
 
@@ -408,7 +408,7 @@ public sealed class MainForm : Form
     private Control PatientDetail(Patient patient)
     {
         var root = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2 };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 280));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var profile = ModernUi.Card();
@@ -430,11 +430,13 @@ public sealed class MainForm : Form
         if (IsPatient)
         {
             var edit = PrimaryAction("Bilgilerimi Düzenle", 180);
+            edit.AutoSize = true;
             edit.Margin = new Padding(0, 10, 0, 0);
             edit.Click += (_, _) => EditCurrentPatient(patient);
             emergencyInfo.Add(edit);
 
             var sendMail = PrimaryAction("Bilgilerimi E-postama Gönder", 230);
+            sendMail.AutoSize = true;
             sendMail.Margin = new Padding(0, 10, 0, 0);
             sendMail.Click += async (_, _) => await SendPatientInfoToEmail(patient);
             emergencyInfo.Add(sendMail);
@@ -442,6 +444,7 @@ public sealed class MainForm : Form
         else
         {
             var edit = PrimaryAction("Bilgileri Düzenle", 180);
+            edit.AutoSize = true;
             edit.Margin = new Padding(0, 10, 0, 0);
             edit.Click += async (_, _) => 
             {
@@ -602,10 +605,18 @@ public sealed class MainForm : Form
             var add = PrimaryAction("Yeni Doktor Ekle", 160);
             add.Click += async (_, _) => 
             {
-                var d = EntityEditorForms.Doctor(null);
+                var (d, secId) = EntityEditorForms.Doctor(_store, null);
                 if (d is not null)
                 {
                     _store.Snapshot.Users.Add(d);
+                    if (!string.IsNullOrWhiteSpace(secId))
+                    {
+                        var sec = _store.Snapshot.Users.FirstOrDefault(u => u.Id == secId);
+                        if (sec is not null)
+                        {
+                            sec.AssignedDoctorUserId = d.Id;
+                        }
+                    }
                     await _store.AddLogAsync(_currentUser, "Doktor Ekleme", $"{d.FullName} sisteme eklendi.", null, d.Id);
                     ShowStaff();
                 }
@@ -983,7 +994,7 @@ public sealed class MainForm : Form
     {
         var card = ModernUi.Card();
         card.Width = 470;
-        card.Height = 205;
+        card.Height = 280;
 
         var emailLine = string.IsNullOrWhiteSpace(notification.EmailTo)
             ? "Arayüz içi bildirim"
@@ -1046,10 +1057,20 @@ public sealed class MainForm : Form
             
         if (IsAdmin)
         {
+            var btnRow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Padding = new Padding(0, 15, 0, 0),
+                Margin = new Padding(0)
+            };
+
             var btnColor = doctor.Active ? ModernUi.Danger : ModernUi.Accent;
-            var edit = ActionButton(doctor.Active ? "Doktoru Sil (Pasifize Et)" : "Doktoru Aktifleştir", 240, btnColor);
-            edit.Margin = new Padding(0, 15, 0, 0);
-            edit.Click += async (_, _) => 
+            var toggle = ActionButton(doctor.Active ? "Doktoru Sil (Pasifize Et)" : "Doktoru Aktifleştir", 240, btnColor);
+            toggle.Margin = new Padding(0, 0, 10, 0);
+            toggle.Click += async (_, _) => 
             {
                 var msg = doctor.Active ? "pasifize etmek" : "aktifleştirmek";
                 if (MessageBox.Show($"{doctor.FullName} adlı doktoru {msg} istediğinize emin misiniz?", "Onay", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
@@ -1061,7 +1082,42 @@ public sealed class MainForm : Form
                     ShowStaff();
                 }
             };
-            stack.Controls.Add(edit);
+
+            var editBtn = ActionButton("Bilgileri Düzenle", 160, ModernUi.Primary);
+            editBtn.Margin = new Padding(0);
+            editBtn.Click += async (_, _) =>
+            {
+                var (updatedDoc, secId) = EntityEditorForms.Doctor(_store, doctor);
+                if (updatedDoc is not null)
+                {
+                    var idx = _store.Snapshot.Users.FindIndex(u => u.Id == doctor.Id);
+                    if (idx >= 0)
+                    {
+                        _store.Snapshot.Users[idx] = updatedDoc;
+                        
+                        foreach (var s in _store.Snapshot.Users.Where(u => u.Role == UserRole.Sekreter && u.AssignedDoctorUserId == updatedDoc.Id))
+                        {
+                            s.AssignedDoctorUserId = null;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(secId))
+                        {
+                            var newSec = _store.Snapshot.Users.FirstOrDefault(u => u.Id == secId);
+                            if (newSec is not null)
+                            {
+                                newSec.AssignedDoctorUserId = updatedDoc.Id;
+                            }
+                        }
+
+                        await _store.AddLogAsync(_currentUser, "Doktor Düzenleme", $"{updatedDoc.FullName} bilgileri güncellendi.", null, updatedDoc.Id);
+                        ShowStaff();
+                    }
+                }
+            };
+
+            btnRow.Controls.Add(toggle);
+            btnRow.Controls.Add(editBtn);
+            stack.Controls.Add(btnRow);
         }
             
         card.Controls.Add(stack);
