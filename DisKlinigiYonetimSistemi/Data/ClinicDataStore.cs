@@ -353,10 +353,7 @@ public sealed class ClinicDataStore
 
     private static bool IsUsableSnapshot(DataSnapshot? snapshot) =>
         snapshot is not null &&
-        snapshot.SeedVersion >= 7 &&
-        snapshot.Users.Count > 0 &&
-        snapshot.Patients.Count > 0 &&
-        snapshot.Medications.Count > 0;
+        snapshot.Users.Count > 0;
 
     public IEnumerable<UserAccount> Doctors => Snapshot.Users.Where(user => user.Active && user.Role == UserRole.Doktor);
     public IEnumerable<UserAccount> Secretaries => Snapshot.Users.Where(user => user.Active && user.Role == UserRole.Sekreter);
